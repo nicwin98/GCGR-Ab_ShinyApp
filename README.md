@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/528001746.svg)](https://zenodo.org/badge/latestdoi/528001746)
+
 # GCGR Ab Shiny App
 
 This app displays RNA sequencing data from livers of female mice treated for eight weeks with the glucagon receptor inhibitor, REGN1193, 
