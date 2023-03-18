@@ -5,6 +5,7 @@ library(shiny)
 library(shinyjs)
 library(shinythemes) 
 library(writexl)
+library(plotly)
 
 GCGRAb_shiny <- read.csv("GCGRAb_shiny.csv")
 t_box_shiny <- read.csv("t_box_shiny.csv") 
@@ -16,10 +17,18 @@ t_box_shiny$Treatment <- factor(t_box_shiny$Treatment, levels = c("GCGR Ab","Ctl
 ui <- fluidPage(theme = shinytheme("paper"),
             navbarPage(title = "Differential expression analysis - GCGR Ab (REGN1193)",       
                        tabPanel(title = "Preface",
-                                fluidRow(column(12, wellPanel(tags$h4("Transcriptomic analysis of mice livers chronically inhibited by a glucagon receptor antibody (GCGR Ab)"),
+                                fluidRow(column(12, wellPanel(tags$h4("Transcriptomic analysis of mice livers chronically inhibited by a glucagon receptor antibody (GCGR Ab) as presented in:"),
+                                                              tags$br(),
+                                                              tags$i(tags$h5("Opposing effects of chronic glucagon receptor agonism and antagonism on amino acids, hepatic gene expression, and alpha cells")),
+                                                              tags$h6("Emilie Elmelund, Katrine D. Galsgaard, Christian D. Johansen, Samuel A. J. Trammell, Anna B. Bomholt,
+                                                              Marie Winther-Sørensen, Jenna E. Hunt, Charlotte M. Sørensen, Thomas Kruse, Jesper F. Lau, Trisha J. Grevengoed, 
+                                                              Jens J. Holst, and Nicolai J. Wewer Albrechtsen."),
+                                                              tags$h6("iScience (2022), DOI:", tags$a("https://doi.org/10.1016/j.isci.2022.105296")),
                                                               tags$br(),
                                                               tags$h6("This app contains information on RNA sequencing data from livers of female mice treated for eight weeks with the glucagon receptor inhibitor, REGN1193, 
-                                                              compared to female mice treated with a control antibody (control group). For detailed information on the bioinformatic analysis used to generate this data please refer to the abovementioned publication and the R codes available at", tags$a("https://github.com/nicwin98/GCGA_GCGR-Ab_GcgrKO"), ".
+                                                              compared to female mice treated with a control antibody (control group). For detailed information on study 
+                                                              design and methods please refer to the abovementioned publication and the R codes available at", 
+                                                                      tags$a("https://github.com/nicwin98/GCGA_GCGR-Ab_GcgrKO"), ".
                                                               Raw data are available through ArrayExpress via the accession code", tags$b("E-MTAB-12048"), ".")))),
                                 fluidRow(column(12, wellPanel(
                                   tags$h5("The app contains three tabs where you can find the following information:"),
@@ -99,30 +108,22 @@ ui <- fluidPage(theme = shinytheme("paper"),
                                fluidRow(column(12, wellPanel(actionButton(inputId = "clearRowsDE",
                                                                           label = "Clear selected rows"),
                                                              downloadButton("printDEselect", 'Download info on all selected genes'))))),
-                  
-                  tabPanel(title = "Single Gene Expression - BoxPlot",
-                           fluidRow(column(12, wellPanel(tags$h5("The boxplot below displays expression counts normalized with DESeq2 (plotCount function) across treatment groups"),
-                                                         tags$h6("The counts are not comparable across genes, as they are not normalized to gene length. The boxplot shows the median, 25", 
-                                                                 tags$sup("th"),", and 75", tags$sup("th"),"percentiles. Points are displayed as outliers if they are above or below 
+                       
+                       tabPanel(title = "Single Gene Expression - BoxPlot",
+                                fluidRow(column(12, wellPanel(tags$h5("The boxplot below displays expression counts normalized with DESeq2 (plotCount function) across treatment groups"),
+                                                              tags$h6("The counts are NOT comparable across genes, as they are not normalized to gene length. The boxplot shows the median, 25", 
+                                                                      tags$sup("th"),", and 75", tags$sup("th"),"percentiles. Points are displayed as outliers if they are above or below 
                                                                  1.5 times the interquartile range.")))),
-                           fluidRow(column(12,
-                                           wellPanel(
-                                             textInput(
-                                               inputId = "num5",
-                                               label = "Find the ENSEMBL ID of your gene (see the table under GCGR Ab vs Ctl Ab), enter it below, and click the update button. 
-                                                       Remember to change the title accordingly.",
-                                               value = "ENSMUSG00000025991.9"),
-                                             textInput(
-                                               inputId = "plotboxtitle",
-                                               label = "Write your desired title",
-                                               value = "CPS1 expression - ENSMUSG00000025991.9"),
-                                             actionButton(
-                                               inputId = "updateBox",
-                                               label = "Update"),
-                                             downloadButton("printboxplot", 'Download plot as a PDF file'),
-                                             downloadButton("printdatatable", 'Download expression values from plot')))),
-                           fluidRow(column(12, plotOutput("expressionboxplot")))),
-                  
+                                fluidRow(column(12,
+                                                wellPanel(
+                                                  selectizeInput(
+                                                    inputId = 'gene',
+                                                    label = "Select your gene of interest",
+                                                    choices = NULL),
+                                                  downloadButton("printboxplot", 'Download plot as a PDF file'),
+                                                  downloadButton("printdatatable", 'Download expression values from plot')))),
+                                fluidRow(column(12, plotlyOutput("expressionboxplot")))),
+                       
                   tabPanel(title = "Gene Ontology Biological Process",
                            fluidRow(column(12, wellPanel(h5("The table below allows you to click and select the Gene Ontology Biological Pathways (GOBPs) you are interested in. 
                                                             The selected GOBPs will appear in the dotplot below the table."),
@@ -154,9 +155,10 @@ ui <- fluidPage(theme = shinytheme("paper"),
                   )
             )
 
-server <- function(input, output, server) {
+server <- function(input, output, session) {
   
-  data_box <- eventReactive(input$updateBox, {filter(t_box_shiny, ENSEMBL == input$num5, .preserve = TRUE)})
+  updateSelectizeInput(session, 'gene', choices = as.vector(unique(t_box_shiny$GeneSymbol)), selected = character(0), server = TRUE)
+  data_box <- reactive({filter(t_box_shiny, GeneSymbol == input$gene, .preserve = TRUE)})
   
   reactive_GCGRinhibitor <- reactive({GCGRAb_shiny})
   
@@ -204,38 +206,40 @@ server <- function(input, output, server) {
   writexl::write_xlsx(GCGRAb_shiny[srows_data, , drop = FALSE], path = file)
   })
   
-  output$expressionboxplot <- renderPlot({
-    ebplot <- ggplot(data_box(),aes(x=Treatment, y=count, fill = Treatment)) +
-      geom_boxplot(outlier.shape = NA) +
-      geom_jitter(aes(col = Treatment), alpha = 0.6, color = "black", width = 0.15) +
-      ylab("Count") +
-      xlab("Treatment") +
-      ggtitle(input$plotboxtitle) +
-      scale_fill_manual(values = c("#33CC33","#CCCCCC")) +
-      theme_bw()
+  output$expressionboxplot <- renderPlotly({
+    validate(
+      need(input$gene, "Select a gene above to generate the boxplot.")
+    )
+    ebplot <- ggplotly(ggplot(data_box(), aes(x=Treatment, y=count, fill = Treatment)) +
+                         geom_boxplot(outlier.shape = NA) +
+                         geom_jitter(aes(col = Treatment), alpha = 0.6, color = "black", width = 0.15) +
+                         ylab("Count") +
+                         xlab("Treatment") +
+                         ggtitle(paste0(input$gene," liver RNA expression")) +
+                         scale_fill_manual(values = c("#33CC33","#CCCCCC")) +
+                         theme_bw())
     print(ebplot)
   })
   
-  
   output$printboxplot <- downloadHandler(
     filename = function() {
-      paste('ExpressionBoxPlot_GCGR_Ab', Sys.Date(), '.pdf', sep='')
+      paste0('ExpressionBoxPlot_GCGR_Ab_', input$gene,"_", Sys.Date(), '.pdf', sep='')
     },
     content = function(file) {
       ggsave(file, 
-             ggplot(data_box(),aes(x=Treatment, y=count, fill = Treatment)) +
+             ggplot(data_box(), aes(x=Treatment, y=count, fill = Treatment)) +
                geom_boxplot(outlier.shape = NA) +
                geom_jitter(aes(col = Treatment), alpha = 0.6, color = "black", width = 0.15) +
                ylab("Count") +
                xlab("Treatment") +
-               ggtitle(input$plotboxtitle) +
+               ggtitle(paste0(input$gene," liver RNA expression")) +
                scale_fill_manual(values = c("#33CC33","#CCCCCC")) +
                theme_bw() , 
-             dpi = 300)
+             dpi = 1000, width = 5, height = 7)
     })
   
   output$printdatatable <- downloadHandler(
-    filename = function() {paste('NormCounts_GCGR-Ab_', Sys.Date(), '.xlsx', sep='')},
+    filename = function() {paste0('NormCounts_GCGR_Ab_',input$gene, "_", Sys.Date(), '.xlsx', sep='')},
     content = function(file) 
     {writexl::write_xlsx(dplyr::filter(data_box()), path = file)
     })
