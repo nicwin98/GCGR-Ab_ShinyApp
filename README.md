@@ -34,6 +34,7 @@ library(shiny)
 library(shinyjs)
 library(shinythemes) 
 library(writexl)
+library(plotly)
 
 runGitHub(rep = "GCGR-Ab_ShinyApp", username = "nicwin98", ref = "main")
 ```
