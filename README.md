@@ -3,7 +3,15 @@
 # GCGR Ab Shiny App
 
 This app displays RNA sequencing data from livers of female mice treated for eight weeks with the glucagon receptor inhibitor, REGN1193, 
-compared to female mice treated with a control antibody (control group). If you wish to view the app online, it is accessible here:
+compared to female mice treated with a control antibody (control group) as presented in
+
+"Opposing effects of chronic glucagon receptor agonism and antagonism on amino acids, hepatic gene expression, and alpha cells"
+
+Emilie Elmelund, Katrine D. Galsgaard, Christian D. Johansen, Samuel A. J. Trammell, Anna B. Bomholt, Marie Winther-Sørensen, Jenna E. Hunt, Charlotte M. Sørensen, Thomas Kruse, Jesper F. Lau, Trisha J. Grevengoed, Jens J. Holst, and Nicolai J. Wewer Albrechtsen.
+
+iScience (2022), DOI: https://doi.org/10.1016/j.isci.2022.105296
+
+If you wish to view the app online, it is accessible here:
   
 https://weweralbrechtsenlab.shinyapps.io/GCGR_Ab/
 
